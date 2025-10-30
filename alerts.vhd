@@ -1,5 +1,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
 entity alerts is
     Port (
@@ -14,43 +15,82 @@ entity alerts is
 end alerts;
 
 architecture Behavioral of alerts is
-    signal counter   : integer := 0;
-    signal led_int   : STD_LOGIC := '0';
-    signal buzzer_int: STD_LOGIC := '0';
+    -- Contadores para temporizadores
+    signal counter_2s : integer range 0 to 100000000 := 0;  -- Para 2 segundos
+    signal counter_500ms : integer range 0 to 25000000 := 0; -- Para 500 ms
+    
+    -- Señales de parpadeo
+    signal blink_2s : STD_LOGIC := '0';
+    signal blink_500ms : STD_LOGIC := '0';
+    
+    -- Constantes de tiempo (asumiendo clk de 50 MHz)
+    constant CLK_2S : integer := 100000000;    -- 2 segundos
+    constant CLK_500MS : integer := 25000000;  -- 500 ms
+    
 begin
+
+    -- Generador de parpadeo de 2 segundos (para no_stock)
     process(clk, reset)
     begin
         if reset = '1' then
-            counter <= 0;
-            led_int <= '0';
-            buzzer_int <= '0';
+            counter_2s <= 0;
+            blink_2s <= '0';
         elsif rising_edge(clk) then
-            counter <= counter + 1;
-
-            if error = '1' then
-                led_int <= '1';
-                buzzer_int <= '1';
-
-            elsif no_stock = '1' then
-                if counter mod 20000000 = 0 then -- parpadeo lento
-                    led_int <= not led_int;
+            if no_stock = '1' then
+                if counter_2s = CLK_2S - 1 then
+                    counter_2s <= 0;
+                    blink_2s <= not blink_2s;
+                else
+                    counter_2s <= counter_2s + 1;
                 end if;
-
-            elsif delivering = '1' then
-                if counter mod 5000000 = 0 then -- parpadeo rápido
-                    led_int <= not led_int;
-                    buzzer_int <= not buzzer_int;
-                end if;
-
             else
-                led_int <= '0';
-                buzzer_int <= '0';
+                counter_2s <= 0;
+                blink_2s <= '0';
             end if;
         end if;
     end process;
-
-    -- asignación de señales internas a los puertos
-    led_red <= led_int;
-    buzzer  <= buzzer_int;
+    
+    -- Generador de parpadeo de 500ms (para delivering)
+    process(clk, reset)
+    begin
+        if reset = '1' then
+            counter_500ms <= 0;
+            blink_500ms <= '0';
+        elsif rising_edge(clk) then
+            if delivering = '1' then
+                if counter_500ms = CLK_500MS - 1 then
+                    counter_500ms <= 0;
+                    blink_500ms <= not blink_500ms;
+                else
+                    counter_500ms <= counter_500ms + 1;
+                end if;
+            else
+                counter_500ms <= 0;
+                blink_500ms <= '0';
+            end if;
+        end if;
+    end process;
+    
+    -- Logica de salida para LED y buzzer
+    process(no_stock, delivering, error, blink_2s, blink_500ms)
+    begin
+        if no_stock = '1' then
+            -- Sin stock: LED parpadea cada 2 segundos, buzzer apagado
+            led_red <= blink_2s;
+            buzzer <= '0';
+        elsif delivering = '1' then
+            -- Entregando: LED y buzzer parpadean cada 500ms
+            led_red <= blink_500ms;
+            buzzer <= blink_500ms;
+        elsif error = '1' then
+            -- Error: LED y buzzer encendidos constantemente
+            led_red <= '1';
+            buzzer <= '1';
+        else
+            -- Inactivo: Todo apagado
+            led_red <= '0';
+            buzzer <= '0';
+        end if;
+    end process;
 
 end Behavioral;

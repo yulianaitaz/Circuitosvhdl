@@ -13,8 +13,8 @@ entity stock_manager is
 end stock_manager;
 
 architecture Behavioral of stock_manager is
-    type stock_array is array(0 to 15) of INTEGER range 0 to 9; -- hasta 9 unidades
-    signal stock : stock_array := (others => 5);  -- stock inicial = 5 productos
+    type stock_array is array(0 to 15) of INTEGER range 0 to 15;
+    signal stock : stock_array := (others => 5);
 begin
     process(clk, reset)
     begin
@@ -27,7 +27,7 @@ begin
                     stock(to_integer(unsigned(product_id))) <= stock(to_integer(unsigned(product_id))) - 1;
                 end if;
             end if;
-
+            
             if stock(to_integer(unsigned(product_id))) = 0 then
                 no_stock <= '1';
             else
